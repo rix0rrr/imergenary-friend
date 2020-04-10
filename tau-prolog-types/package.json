@@ -1,0 +1,12 @@
+{
+  "name": "tau-prolog-types",
+  "private": true,
+  "version": "0.2.81",
+  "description": "",
+  "types": "index.d.ts",
+  "scripts": {
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
