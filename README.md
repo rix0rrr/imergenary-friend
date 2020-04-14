@@ -4,6 +4,8 @@ A friendly GitHub merge bot, slightly different from all the other ones out ther
 
 Built using CDK.
 
+![It is your friend](monster.png)
+
 ## Why is this different from other bots?
 
 - Can act both on events and on PR states.
@@ -61,3 +63,7 @@ not/1
 ```
 
 We add `not/1` back, since it reads much more natural than `\+`.
+
+## Attributions
+
+Monster image designed by [Freepik](http://www.freepik.com).
