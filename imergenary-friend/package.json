@@ -13,7 +13,7 @@
     "@types/node": "10.17.5",
     "jest": "^24.9.0",
     "typescript": "~3.7.2",
-    "tau-prolog-types": "^0.2.81"
+    "@types/tau-prolog": "^0.2.81"
   },
   "dependencies": {
     "@octokit/rest": "^17.2.0",
