@@ -1,4 +1,3 @@
-import * as fs from 'fs';
 import * as pl from 'tau-prolog';
 import * as ph from './prolog-helpers';
 import { PullRequestInformation } from "./types";
@@ -33,36 +32,25 @@ export function evaluate(pr: PullRequestInformation, program: string, options: E
  */
 function addPrFacts(pr: PullRequestInformation, session: pl.type.Session, options: EvaluateOptions) {
   // Facts about the PR
-  stringFact('pr_state', pr.pullRequest.state);
-  boolFact('pr_locked', pr.pullRequest.locked);
-  stringFact('pr_title', pr.pullRequest.title);
-  stringFact('pr_body', pr.pullRequest.body);
-  stringFact('pr_author', pr.pullRequest.user.login);
-  boolFact('pr_draft', pr.pullRequest.draft);
-  stringFact('pr_base', pr.pullRequest.base.ref);
-  stringFact('pr_head', pr.pullRequest.head.ref);
-  stringFact('pr_author_association', pr.pullRequest.author_association.toLowerCase());
-  boolFact('pr_merged', pr.pullRequest.merged);
-  boolFact('pr_mergeable', pr.pullRequest.mergeable);
-  boolFact('pr_rebaseable', pr.pullRequest.rebaseable);
-  stringFact('pr_mergeable_state', pr.pullRequest.mergeable_state);
-  boolFact('pr_maintainer_can_modify', pr.pullRequest.maintainer_can_modify);
+  stringFact('pr_state', pr.state);
+  boolFact('pr_locked', pr.locked);
+  stringFact('pr_title', pr.title);
+  stringFact('pr_body', pr.body);
+  stringFact('pr_author', pr.author);
+  boolFact('pr_draft', pr.draft);
+  stringFact('pr_base', pr.base);
+  stringFact('pr_head', pr.head);
+  stringFact('pr_author_association', pr.authorAssociation);
+  boolFact('pr_merged', pr.merged);
+  boolFact('pr_mergeable', pr.mergeable);
+  boolFact('pr_rebaseable', pr.rebaseable);
+  stringFact('pr_mergeable_state', pr.mergeableState);
+  boolFact('pr_maintainer_can_modify', pr.maintainerCanModify);
 
-  listFact('pr_label', 1, pr.pullRequest.labels.map(l => l.name));
-  listFact('pr_check', 2, pr.checks.check_runs.map(c => [c.name, c.conclusion ?? 'pending']));
-
-  // We might get multiple reports of the same status
-  pr.statuses.sort((a, b) => a.updated_at.localeCompare(b.updated_at));
-  const uniqueStatuses: Record<string, string> = {};
-  for (const status of pr.statuses) {
-    uniqueStatuses[status.context] = status.state;
-  }
-  listFact('pr_status', 2, Object.entries(uniqueStatuses));
-
-  // Reviews, only add non-dismissed ones
-  listFact('pr_review', 2, pr.reviews
-    .filter(r => ['APPROVED', 'CHANGES_REQUESTED'].includes(r.state))
-    .map(r => [r.user.login, r.state.toLowerCase()]));
+  listFact('pr_label', 1, pr.labels ?? []);
+  listFact('pr_check', 2, (pr.checks ?? []).map(c => [c.name, c.conclusion]));
+  listFact('pr_status', 2, (pr.statuses ?? []).map(c => [c.context, c.state]));
+  listFact('pr_review', 2, (pr.reviews ?? []).map(r => [r.reviewer, r.state]));
 
   // Helpers
   function stringFact(factName: string, value: string) {

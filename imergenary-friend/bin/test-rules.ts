@@ -9,7 +9,7 @@ async function main() {
     throw new Error(`Usage: test-rules <SCRIPTFILE> <URL>`);
   }
 
-  console.log(`Evaluating ${url} using ${fileName}`);
+  console.log(`% Evaluating ${url} using ${fileName}`);
   const program = await fs.readFile(fileName, { encoding: 'utf-8' });
 
   await evaluateAgainstGitHub(url, program.toString());

@@ -1,50 +1,67 @@
-import { Octokit } from '@octokit/rest';
+export interface PullRequestCheck {
+  name: string;
+  conclusion: string;
+}
 
-// These types are all not exported by Octokit
-// https://github.com/octokit/types.ts/issues/25
-//
-// Reference the type via the method returning it.
+export interface CommitStatus {
+  context: string;
+  state: string;
+}
 
-type PullsGetResponse = PromiseValue<
-  ReturnType<InstanceType<typeof Octokit>['pulls']['get']>
->['data']
-
-type ReviewsListResponse = PromiseValue<
-  ReturnType<InstanceType<typeof Octokit>['pulls']['listReviews']>
->['data']
-
-type ChecksListResponse = PromiseValue<
-  ReturnType<InstanceType<typeof Octokit>['checks']['listForRef']>
->['data']
-
-type StatusesListResponse = PromiseValue<
-  ReturnType<InstanceType<typeof Octokit>['repos']['listStatusesForRef']>
->['data']
-
-type PromiseValue<A> = A extends Promise<infer B> ? B : never;
-
+export interface PullRequestReview {
+  reviewer: string;
+  state: string;
+}
 
 /**
  * Information we have on the pull request
  */
 export interface PullRequestInformation {
-  /**
-   * The response of octokit.pulls.get(...)
-   */
-  pullRequest: PullsGetResponse;
-
-  /**
-   * The response of octokit.checks.list(...)
-   */
-  checks: ChecksListResponse;
-
-  /**
-   * The response of octokit.repos.listStatusesForRef(...)
-   */
-  statuses: StatusesListResponse;
-
-  /**
-   * Reviews associated with the PR
-   */
-  reviews: ReviewsListResponse;
+  state: string;
+  locked: boolean;
+  title: string;
+  body: string;
+  author: string;
+  draft: boolean;
+  base: string;
+  head: string;
+  authorAssociation: string;
+  merged: boolean;
+  mergeable: boolean;
+  rebaseable: boolean;
+  mergeableState: string;
+  maintainerCanModify: boolean;
+  labels?: string[];
+  checks?: PullRequestCheck[];
+  statuses?: CommitStatus[];
+  reviews?: PullRequestReview[];
 }
+
+export type TriggerEvent = {};
+
+export type CheckRunCompleted = {
+  event: 'check_run';
+  action: 'completed';
+  conclusion: string;
+};
+
+export type PullRequestLabeled = {
+  event: 'pull_request';
+  action: 'labeled' | 'unlabeled';
+  label: string;
+  sender: string;
+};
+
+export type PullRequestOpened = {
+  event: 'pull_request';
+  action: 'opened';
+  label: string;
+  sender: string;
+};
+
+export type CommitPushed = {
+  event: 'pull_request';
+  action: 'opened';
+  label: string;
+  sender: string;
+};
