@@ -48,6 +48,8 @@ function addPrFacts(pr: PullRequestInformation, session: pl.type.Session, option
   boolFact('pr_maintainer_can_modify', pr.maintainerCanModify);
 
   listFact('pr_label', 1, pr.labels ?? []);
+  listFact('pr_requested_reviewers', 1, pr.requestedReviewers ?? []);
+  listFact('pr_requested_teams', 1, pr.requestedTeams ?? []);
   listFact('pr_check', 2, (pr.checks ?? []).map(c => [c.name, c.conclusion]));
   listFact('pr_status', 2, (pr.statuses ?? []).map(c => [c.context, c.state]));
   listFact('pr_review', 2, (pr.reviews ?? []).map(r => [r.reviewer, r.state]));
