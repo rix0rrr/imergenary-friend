@@ -2,6 +2,7 @@
  * Information we have on the pull request
  */
 export interface PullRequestInformation {
+  number: number;
   state: string;
   locked: boolean;
   title: string;

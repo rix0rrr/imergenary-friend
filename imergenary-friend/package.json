@@ -1,8 +1,7 @@
 {
   "name": "imergenary-friend",
   "version": "0.1.0",
-  "bin": {
-  },
+  "bin": {},
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",

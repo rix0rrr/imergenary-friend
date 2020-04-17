@@ -7,11 +7,11 @@ export async function evaluateAgainstGitHub(url: string, program: string) {
     throw new Error(`Does not look like a GitHub pull request URL: ${url}`);
   }
 
-  const prInfo = await getPullRequestInformation({
-    owner: parts[1],
-    repo: parts[2],
-    pull_number: parseInt(parts[3], 10),
-  });
+  const prInfo = await getPullRequestInformation(
+    parts[1],
+    parts[2],
+    parseInt(parts[3], 10),
+  );
 
   evaluate(prInfo, program, {
     debug: process.stdout
