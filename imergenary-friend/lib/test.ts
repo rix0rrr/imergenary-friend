@@ -13,7 +13,8 @@ export async function evaluateAgainstGitHub(url: string, program: string) {
     parseInt(parts[3], 10),
   );
 
-  evaluate(prInfo, program, {
+  evaluate(program, {
+    pr: prInfo,
     debug: process.stdout
   });
 }

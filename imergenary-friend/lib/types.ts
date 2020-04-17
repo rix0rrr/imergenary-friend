@@ -40,66 +40,49 @@ export interface PullRequestReview {
   state: string;
 }
 
-export interface PullRequestIdentifier {
+export interface Repository {
   owner: string;
   repo: string;
+}
+
+export interface PullRequestIdentifier {
   number: number;
 }
 
-export type TriggerEvent = {};
+/**
+ * Events that do something to a PR that may cause it to need to be re-evaluated
+ */
+export type TriggerEvent = ChecksCompleted | PullRequestEvent | PullRequestReviewSubmitted | StatusFinished;
 
 export type ChecksCompleted = {
   event: 'check_run' | 'check_suite';
   action: 'completed';
   conclusion: string;
-  pullRequest: PullRequestIdentifier;
+  repository: Repository;
+  pullNumber: number;
 };
 
-export type PullRequestLabeled = {
-  event: 'pull_request';
-  action: 'labeled' | 'unlabeled';
-  label: string;
-  sender: string;
-  pullRequest: PullRequestIdentifier;
-};
+export type PullRequestAction = 'assigned' | 'unassigned' | 'review_requested' |
+    'review_request_removed' | 'labeled' | 'unlabeled' | 'opened' | 'edited' |
+    'closed' | 'ready_for_review' | 'locked' | 'unlocked' | 'reopened';
 
-export type PullRequestOpened = {
+export type PullRequestEvent = {
   event: 'pull_request';
-  action: 'opened' | 'reopened';
+  action: PullRequestAction;
   sender: string;
-  pullRequest: PullRequestIdentifier;
-};
-
-export type PullRequestEdited = {
-  event: 'pull_request';
-  action: 'edited';
-  sender: string;
-  pullRequest: PullRequestIdentifier;
-};
-
-export type PullRequestSynchronized = {
-  event: 'pull_request';
-  action: 'synchronize';
-  sender: string;
-  pullRequest: PullRequestIdentifier;
-};
-
-export type PullRequestReviewRequested = {
-  event: 'pull_request';
-  action: 'review_requested';
-  sender: string;
-  pullRequest: PullRequestIdentifier;
+  repository: Repository;
+  pullNumber: number;
 };
 
 export type PullRequestReviewSubmitted = {
   event: 'pull_request_review';
   action: 'submitted';
-  pullRequest: PullRequestIdentifier;
+  repository: Repository;
+  pullNumber: number;
 };
 
-export type CommitPushed = {
-  event: 'pull_request';
-  action: 'opened';
-  label: string;
-  sender: string;
+export type StatusFinished = {
+  event: 'status';
+  state: 'success' | 'failure' | 'error';
+  repository: Repository;
 };

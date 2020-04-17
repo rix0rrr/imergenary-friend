@@ -1,19 +1,24 @@
 import * as pl from 'tau-prolog';
 import * as ph from './prolog-helpers';
-import { PullRequestInformation } from "./types";
+import { PullRequestInformation, TriggerEvent } from "./types";
 
 export interface EvaluateOptions {
+  pr: PullRequestInformation;
+  event?: TriggerEvent;
   debug?: NodeJS.WriteStream;
 }
 
 /**
  * Evaluate the given prolog program against the given Pull Request
  */
-export function evaluate(pr: PullRequestInformation, program: string, options: EvaluateOptions = {}) {
+export function evaluate(program: string, options: EvaluateOptions) {
   const session = pl.create();
 
   // Seed the session with rules
-  addPrFacts(pr, session, options);
+  addPrFacts(options.pr, session, options);
+  if (options.event) {
+    addEventFacts(options.event, session, options);
+  }
   extendRuleSet(session);
 
   // Evaluate the program
@@ -31,69 +36,44 @@ export function evaluate(pr: PullRequestInformation, program: string, options: E
  * Turn PR data into a set of facts
  */
 function addPrFacts(pr: PullRequestInformation, session: pl.type.Session, options: EvaluateOptions) {
+  const _ = new FactHelper(session, options.debug);
+
   // Facts about the PR
-  stringFact('pr_state', pr.state);
-  boolFact('pr_locked', pr.locked);
-  stringFact('pr_title', pr.title);
-  stringFact('pr_body', pr.body);
-  stringFact('pr_author', pr.author);
-  boolFact('pr_draft', pr.draft);
-  stringFact('pr_base', pr.base);
-  stringFact('pr_head', pr.head);
-  stringFact('pr_author_association', pr.authorAssociation);
-  boolFact('pr_merged', pr.merged);
-  boolFact('pr_mergeable', pr.mergeable);
-  boolFact('pr_rebaseable', pr.rebaseable);
-  stringFact('pr_mergeable_state', pr.mergeableState);
-  boolFact('pr_maintainer_can_modify', pr.maintainerCanModify);
+  _.stringFact('pr_state', pr.state);
+  _.boolFact('pr_locked', pr.locked);
+  _.stringFact('pr_title', pr.title);
+  _.stringFact('pr_body', pr.body);
+  _.stringFact('pr_author', pr.author);
+  _.boolFact('pr_draft', pr.draft);
+  _.stringFact('pr_base', pr.base);
+  _.stringFact('pr_head', pr.head);
+  _.stringFact('pr_author_association', pr.authorAssociation);
+  _.boolFact('pr_merged', pr.merged);
+  _.boolFact('pr_mergeable', pr.mergeable);
+  _.boolFact('pr_rebaseable', pr.rebaseable);
+  _.stringFact('pr_mergeable_state', pr.mergeableState);
+  _.boolFact('pr_maintainer_can_modify', pr.maintainerCanModify);
 
-  listFact('pr_label', 1, pr.labels ?? []);
-  listFact('pr_requested_reviewers', 1, pr.requestedReviewers ?? []);
-  listFact('pr_requested_teams', 1, pr.requestedTeams ?? []);
-  listFact('pr_check', 2, (pr.checks ?? []).map(c => [c.name, c.conclusion]));
-  listFact('pr_status', 2, (pr.statuses ?? []).map(c => [c.context, c.state]));
-  listFact('pr_review', 2, (pr.reviews ?? []).map(r => [r.reviewer, r.state]));
+  _.listFact('pr_label', 1, pr.labels ?? []);
+  _.listFact('pr_requested_reviewers', 1, pr.requestedReviewers ?? []);
+  _.listFact('pr_requested_teams', 1, pr.requestedTeams ?? []);
+  _.listFact('pr_check', 2, (pr.checks ?? []).map(c => [c.name, c.conclusion]));
+  _.listFact('pr_status', 2, (pr.statuses ?? []).map(c => [c.context, c.state]));
+  _.listFact('pr_review', 2, (pr.reviews ?? []).map(r => [r.reviewer, r.state]));
+}
 
-  // Helpers
-  function stringFact(factName: string, value: string) {
-    addRule(ph.rule(factName, [ph.term(value)]));
+/**
+ * Turn an event into a set of facts
+ */
+function addEventFacts(event: TriggerEvent, session: pl.type.Session, options: EvaluateOptions) {
+  const _ = new FactHelper(session, options.debug);
+  switch (event.event) {
+    case 'pull_request':
+      _.addRule(ph.rule('event_changed', [ph.term(event.action), ph.term(event.sender)]));
+      break;
   }
 
-  function boolFact(factName: string, value: boolean) {
-    if (value) {
-      addRule(ph.rule(factName, []));
-    } else {
-      addRule(ph.rule(factName, [], ph.term('fail')));
-    }
-  }
-
-  type ArityValue<A extends number> =
-    A extends 1 ? string :
-    A extends 2 ? [any, any] :
-    A extends 3 ? [any, any, any] :
-    never;
-
-  function listFact<A extends number>(factName: string, arity: A, values: ArityValue<A>[]) {
-    for (const value of values) {
-      if (typeof value === 'string') {
-        addRule(ph.rule(factName, [ph.term(value)]));
-      } else if (Array.isArray(value)) {
-        addRule(ph.rule(factName, value.map(t => ph.term(t))));
-      }
-    }
-
-    // Add a 'fail' for this list if it is empty, otherwise we'll get an 'undefined' error.
-    if (values.length === 0) {
-      addRule(ph.rule(factName, range(arity).map(_ => ph.v('_')), ph.term('fail')));
-    }
-  }
-
-  function addRule(rule: pl.type.Rule) {
-    if (options.debug) {
-      options.debug.write(`${rule}\n`);
-    }
-    session.add_rule(rule);
-  }
+  _.addRule(ph.rule('event_changed', [ph._(), ph._()], ph.term('fail')));
 }
 
 /**
@@ -107,7 +87,7 @@ function extendRuleSet(session: pl.type.Session) {
     ph.term('call', ph.X()),
     ph.term('!'),
     ph.term('fail')));
-  session.add_rule(ph.rule('not', [ph.v('_')]));
+  session.add_rule(ph.rule('not', [ph._()]));
 }
 
 /**
@@ -136,3 +116,49 @@ function range(n: number) {
   }
   return ret;
 }
+
+class FactHelper {
+  constructor(private readonly session: pl.type.Session, private readonly debug?: NodeJS.WriteStream) {
+  }
+
+  // Helpers
+  public stringFact(factName: string, value: string) {
+    this.addRule(ph.rule(factName, [ph.term(value)]));
+  }
+
+  public boolFact(factName: string, value: boolean) {
+    if (value) {
+      this.addRule(ph.rule(factName, []));
+    } else {
+      this.addRule(ph.rule(factName, [], ph.term('fail')));
+    }
+  }
+
+  public listFact<A extends number>(factName: string, arity: A, values: ArityValue<A>[]) {
+    for (const value of values) {
+      if (typeof value === 'string') {
+        this.addRule(ph.rule(factName, [ph.term(value)]));
+      } else if (Array.isArray(value)) {
+        this.addRule(ph.rule(factName, value.map(t => ph.term(t))));
+      }
+    }
+
+    // Add a 'fail' for this list if it is empty, otherwise we'll get an 'undefined' error.
+    if (values.length === 0) {
+      this.addRule(ph.rule(factName, range(arity).map(_ => ph._()), ph.term('fail')));
+    }
+  }
+
+  public addRule(rule: pl.type.Rule) {
+    if (this.debug) {
+      this.debug.write(`${rule}\n`);
+    }
+    this.session.add_rule(rule);
+  }
+}
+
+type ArityValue<A extends number> =
+  A extends 1 ? string :
+  A extends 2 ? [any, any] :
+  A extends 3 ? [any, any, any] :
+  never;

@@ -29,3 +29,7 @@ export function v(id: string) {
 export function X() {
   return v('X');
 }
+
+export function _() {
+  return v('_');
+}

@@ -1,4 +1,4 @@
-import { PullRequestInformation } from "./types";
+import { PullRequestInformation, TriggerEvent } from "./types";
 import { Octokit } from '@octokit/rest';
 
 const octokit = new Octokit({
@@ -138,3 +138,53 @@ const PULL_REQUEST_QUERY =
   }},
   labels(first: 100) { nodes { name } },
 `;
+
+export function parseEvent(eventType: string, event: any): TriggerEvent[] {
+  const repository =  {
+    repo: event?.repository?.name,
+    owner: event?.repository?.owner?.login,
+  };
+
+  switch (eventType) {
+    case 'status':
+      if (event.state === 'success' || event.state === ' failure' || event.state === 'error') {
+        return [{
+          event: 'status',
+          state: event.state,
+          repository,
+        }];
+      }
+      break;
+    case 'check_run':
+    case 'check_suite':
+      if (event.action === 'completed') {
+        return event.check_run.check_suite.pull_requests.map((pr: any) => ({
+          event: eventType,
+          action: 'completed',
+          conclusion: event.conclusion,
+          repository,
+          pullNumber: pr.number,
+        }));
+      }
+      break;
+    case 'pull_request':
+      return [{
+        event: eventType,
+        action: event.action,
+        repository,
+        sender: event.sender.login,
+        pullNumber: event.number,
+      }];
+    case 'pull_request_review':
+      if (event.action === 'submitted') {
+        return [{
+          event: eventType,
+          action: event.action,
+          repository,
+          pullNumber: event.pull_request.number,
+        }];
+      }
+      break;
+  }
+  return [];
+}
