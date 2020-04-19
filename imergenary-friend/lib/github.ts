@@ -156,12 +156,22 @@ export function parseEvent(eventType: string, event: any): TriggerEvent[] {
       }
       break;
     case 'check_run':
-    case 'check_suite':
       if (event.action === 'completed') {
         return event.check_run.check_suite.pull_requests.map((pr: any) => ({
           event: eventType,
           action: 'completed',
-          conclusion: event.conclusion,
+          conclusion: event.check_run.conclusion,
+          repository,
+          pullNumber: pr.number,
+        }));
+      }
+      break;
+    case 'check_suite':
+      if (event.action === 'completed') {
+        return event.check_suite.pull_requests.map((pr: any) => ({
+          event: eventType,
+          action: 'completed',
+          conclusion: event.check_suite.conclusion,
           repository,
           pullNumber: pr.number,
         }));
