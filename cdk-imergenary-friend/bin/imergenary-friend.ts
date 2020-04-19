@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import 'source-map-support/register';
 import { App, Construct, Stack, StackProps } from '@aws-cdk/core';
-import { ImergenaryFriend } from '../lib/imergenary-friend-stack';
+import { ImergenaryFriend } from '../lib/imergenary-friend';
 
 class ImergenaryFriendStack extends Stack {
   constructor(scope: Construct, id: string, props: StackProps) {

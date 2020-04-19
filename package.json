@@ -1,8 +1,10 @@
 {
   "private": true,
-  "workspaces": [
-    "imergenary-friend",
-    "cdk-imergenary-friend",
-    "tau-prolog-types"
-  ]
+  "workspaces": {
+    "packages": [
+      "imergenary-friend",
+      "cdk-imergenary-friend",
+      "tau-prolog-types"
+    ]
+  }
 }
