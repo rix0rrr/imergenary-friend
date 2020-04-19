@@ -1,22 +1,82 @@
 import { APIGatewayProxyEvent, Context, APIGatewayProxyResult } from "aws-lambda"
 import * as ifriend from 'imergenary-friend';
+import * as AWS from 'aws-sdk';
+import * as AdmZip from 'adm-zip';
+import { PullRequestAction } from "imergenary-friend";
 
 export async function handler(event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> {
-  // Always log the event to start with ;)
   const eventPayload = JSON.parse(event.body ?? '{}');
   const eventType = event.headers['X-GitHub-Event'];
 
   try {
     const events = ifriend.parseEvent(eventType, eventPayload);
-    events.forEach(x => console.log(JSON.stringify(x)));
+
+    for (const event of events) {
+      const actions = await actionsForEvent(event);
+      console.log(JSON.stringify({ event, actions }));
+    }
+
+    return {
+      body: JSON.stringify({
+        success: true
+      }),
+      statusCode: 200,
+    };
   } catch(e) {
-    console.log(JSON.stringify({ error: e.message, eventType, event }));
+    console.log(JSON.stringify({ error: e.message, eventType, eventPayload }));
+    throw e;
+  }
+}
+
+async function actionsForEvent(event: ifriend.TriggerEvent): Promise<PullRequestAction[]> {
+  const { owner, repo } = event.repository;
+
+  const program = await fetchConfig(owner, repo);
+  if (!program) { return []; }
+
+  await fetchToken();
+
+  const pullRequests = event.event === 'status'
+    ? await ifriend.findPullRequestsFromHead(owner, repo, event.sha)
+    : [await ifriend.getPullRequestInformation(owner, repo, event.pullNumber)];
+
+  return flatMap(pullRequests, pr => ifriend.evaluate(program, { pr, event }).map(action => ({
+    repository: { owner, repo },
+    pullNumber: pr.number,
+    action,
+  })));
+}
+
+async function fetchToken() {
+  if (!process.env.GITHUB_TOKEN) {
+    const secrets = new AWS.SecretsManager();
+    const token = await secrets.getSecretValue({
+      SecretId: process.env.GITHUB_TOKEN_SECRET_ARN!,
+    }).promise();
+    process.env.GITHUB_TOKEN = token.SecretString;
+  }
+}
+
+let downloadedConfigZip: Buffer | undefined;
+async function fetchConfig(owner: string, repo: string): Promise<string | undefined> {
+  if (downloadedConfigZip === undefined) {
+    const s3 = new AWS.S3();
+    const response = await s3.getObject({
+      Bucket: process.env.CONFIG_BUCKET!,
+      Key: process.env.CONFIG_KEY!,
+    }).promise();
+    downloadedConfigZip = response.Body as Buffer;
   }
 
-  return {
-    body: JSON.stringify({
-      success: true
-    }),
-    statusCode: 200,
-  };
+  const zip = new AdmZip(downloadedConfigZip);
+  const fileName = `${owner}_${repo}.pro`;
+  try {
+    return zip.readAsText(fileName, 'utf-8');
+  } catch (e) {
+    return undefined;
+  }
+}
+
+function flatMap<A, B>(xs: A[], fn: (x: A) => B[]): B[] {
+  return Array.prototype.concat([], xs.map(fn));
 }

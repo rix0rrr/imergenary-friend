@@ -147,11 +147,13 @@ export function parseEvent(eventType: string, event: any): TriggerEvent[] {
 
   switch (eventType) {
     case 'status':
-      if (event.state === 'success' || event.state === ' failure' || event.state === 'error') {
+      if (event.state === 'success' || event.state === 'failure' || event.state === 'error') {
         return [{
           event: 'status',
           state: event.state,
           repository,
+          sha: event.sha,
+          context: event.context,
         }];
       }
       break;

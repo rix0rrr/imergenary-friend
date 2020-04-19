@@ -62,13 +62,13 @@ export type ChecksCompleted = {
   pullNumber: number;
 };
 
-export type PullRequestAction = 'assigned' | 'unassigned' | 'review_requested' |
+export type PullRequestEventAction = 'assigned' | 'unassigned' | 'review_requested' |
     'review_request_removed' | 'labeled' | 'unlabeled' | 'opened' | 'edited' |
     'closed' | 'ready_for_review' | 'locked' | 'unlocked' | 'reopened';
 
 export type PullRequestEvent = {
   event: 'pull_request';
-  action: PullRequestAction;
+  action: PullRequestEventAction;
   sender: string;
   repository: Repository;
   pullNumber: number;
@@ -85,4 +85,16 @@ export type StatusFinished = {
   event: 'status';
   state: 'success' | 'failure' | 'error';
   repository: Repository;
+  sha: string;
+  context: string;
 };
+
+export interface Action {
+  description: string;
+}
+
+export interface PullRequestAction {
+  repository: Repository;
+  pullNumber: number;
+  action: Action;
+}

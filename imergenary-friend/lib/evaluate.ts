@@ -1,6 +1,6 @@
 import * as pl from 'tau-prolog';
 import * as ph from './prolog-helpers';
-import { PullRequestInformation, TriggerEvent } from "./types";
+import { PullRequestInformation, TriggerEvent, Action } from "./types";
 
 export interface EvaluateOptions {
   pr: PullRequestInformation;
@@ -11,7 +11,7 @@ export interface EvaluateOptions {
 /**
  * Evaluate the given prolog program against the given Pull Request
  */
-export function evaluate(program: string, options: EvaluateOptions) {
+export function evaluate(program: string, options: EvaluateOptions): Action[] {
   const session = pl.create();
 
   // Seed the session with rules
@@ -29,7 +29,14 @@ export function evaluate(program: string, options: EvaluateOptions) {
   const queried = session.query('action(X).');
   if (queried !== true) { throw termToError(queried); }
 
-  session.answers(x => x && console.log(pl.format_answer(x)));
+  const ret = new Array<Action>();
+  session.answers(x => {
+    if (x) {
+      ret.push({ description: pl.format_answer(x) });
+    }
+  });
+
+  return ret;
 }
 
 /**
