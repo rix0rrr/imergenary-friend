@@ -69,11 +69,12 @@ function addEventFacts(event: TriggerEvent, session: pl.type.Session, options: E
   const _ = new FactHelper(session, options.debug);
   switch (event.event) {
     case 'pull_request':
-      _.addRule(ph.rule('event_changed', [ph.term(event.action), ph.term(event.sender)]));
+      _.addRule(ph.rule('event_changed', [ph.term(event.sender), ph.term(event.action)]));
       break;
   }
 
-  _.addRule(ph.rule('event_changed', [ph._(), ph._()], ph.term('fail')));
+  // Make sure the rule exists so
+  _.addRule(ph.rule('event_change', [ph._(), ph._()], ph.term('fail')));
 }
 
 /**
