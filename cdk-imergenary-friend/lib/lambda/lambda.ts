@@ -4,10 +4,14 @@ import * as ifriend from 'imergenary-friend';
 export async function handler(event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> {
   // Always log the event to start with ;)
   const eventPayload = JSON.parse(event.body ?? '{}');
-  eventPayload.headers = event.headers;
+  const eventType = event.headers['X-GitHub-Event'];
 
-  const events = ifriend.parseEvent(event.headers['X-GitHub-Event'], eventPayload);
-  events.forEach(console.log);
+  try {
+    const events = ifriend.parseEvent(eventType, eventPayload);
+    events.forEach(x => console.log(JSON.stringify(x)));
+  } catch(e) {
+    console.log(JSON.stringify({ error: e.message, eventType, event }));
+  }
 
   return {
     body: JSON.stringify({
