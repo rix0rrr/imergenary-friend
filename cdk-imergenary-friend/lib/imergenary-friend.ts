@@ -23,7 +23,7 @@ export class ImergenaryFriend extends Construct {
     super(scope, id);
 
     const fn = new njslambda.NodejsFunction(this, 'Lambda', {
-      entry: path.join(__dirname, 'lambda', 'lambda.ts'),
+      entry: path.join(__dirname, 'lambda', 'lambda.js'),
       description: 'ImergenaryFriend Main Lambda',
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_10_X,
