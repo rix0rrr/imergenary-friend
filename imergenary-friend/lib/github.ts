@@ -20,7 +20,7 @@ export async function getPullRequestInformation(owner: string, repo: string, pul
     }`, {
     headers: {
       // Use preview API
-      accept: 'application/vnd.github.merge-info-preview+json,application/vnd.github.antiope-preview+json ',
+      accept: 'application/vnd.github.merge-info-preview+json,application/vnd.github.antiope-preview+json',
       authorization: `token ${process.env.GITHUB_TOKEN}`
     }
   });
@@ -99,6 +99,7 @@ export async function findPullRequestsFromHead(owner: string, repo: string, comm
     }
   }`, {
     headers: {
+      accept: 'application/vnd.github.merge-info-preview+json,application/vnd.github.antiope-preview+json',
       authorization: `token ${process.env.GITHUB_TOKEN}`
     }
   });
