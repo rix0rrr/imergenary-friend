@@ -2,7 +2,7 @@ import { APIGatewayProxyEvent, Context, APIGatewayProxyResult } from "aws-lambda
 import * as ifriend from 'imergenary-friend';
 import * as AWS from 'aws-sdk';
 import * as AdmZip from 'adm-zip';
-import { PullRequestAction } from "imergenary-friend";
+import { PullRequestAction, PullRequestInformation } from "imergenary-friend";
 
 export async function handler(event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> {
   const eventPayload = JSON.parse(event.body ?? '{}');
@@ -28,7 +28,7 @@ export async function handler(event: APIGatewayProxyEvent, context: Context): Pr
   }
 }
 
-async function actionsForEvent(event: ifriend.TriggerEvent): Promise<PullRequestAction[]> {
+async function actionsForEvent(event: ifriend.TriggerEvent): Promise<EventActions[]> {
   const { owner, repo } = event.repository;
 
   const program = await fetchConfig(owner, repo);
@@ -40,11 +40,14 @@ async function actionsForEvent(event: ifriend.TriggerEvent): Promise<PullRequest
     ? await ifriend.findPullRequestsFromHead(owner, repo, event.sha)
     : [await ifriend.getPullRequestInformation(owner, repo, event.pullNumber)];
 
-  return flatMap(pullRequests, pr => ifriend.evaluate(program, { pr, event }).map(action => ({
-    repository: { owner, repo },
-    pullNumber: pr.number,
-    action,
-  })));
+  return pullRequests.map(pullRequest => ({
+    pullRequest,
+    actions: ifriend.evaluate(program, { pullRequest, event }).map(action => ({
+      repository: { owner, repo },
+      pullNumber: pullRequest.number,
+      action,
+    }))
+  }));
 }
 
 async function fetchToken() {
@@ -79,4 +82,9 @@ async function fetchConfig(owner: string, repo: string): Promise<string | undefi
 
 function flatMap<A, B>(xs: A[], fn: (x: A) => B[]): B[] {
   return Array.prototype.concat([], xs.map(fn));
+}
+
+interface EventActions {
+  pullRequest: PullRequestInformation;
+  actions: PullRequestAction[];
 }

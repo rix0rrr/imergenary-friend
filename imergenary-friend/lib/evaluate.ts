@@ -3,7 +3,7 @@ import * as ph from './prolog-helpers';
 import { PullRequestInformation, TriggerEvent, Action } from "./types";
 
 export interface EvaluateOptions {
-  pr: PullRequestInformation;
+  pullRequest: PullRequestInformation;
   event?: TriggerEvent;
   debug?: NodeJS.WriteStream;
 }
@@ -15,7 +15,7 @@ export function evaluate(program: string, options: EvaluateOptions): Action[] {
   const session = pl.create();
 
   // Seed the session with rules
-  addPrFacts(options.pr, session, options);
+  addPrFacts(options.pullRequest, session, options);
   if (options.event) {
     addEventFacts(options.event, session, options);
   }

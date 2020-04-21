@@ -1,16 +1,23 @@
 import { PullRequestInformation, TriggerEvent } from "./types";
 import { Octokit } from '@octokit/rest';
 
-const octokit = new Octokit({
-  auth: process.env.GITHUB_TOKEN ? `token ${process.env.GITHUB_TOKEN}` : undefined,
-  userAgent: 'imergenary-friend',
-});
+let _octokit: Octokit;
+function octokit() {
+  if (!_octokit) {
+    _octokit = new Octokit({
+      auth: process.env.GITHUB_TOKEN ? `token ${process.env.GITHUB_TOKEN}` : undefined,
+      userAgent: 'imergenary-friend',
+    });
+  }
+  return _octokit;
+}
+
 
 export async function getPullRequestInformation(owner: string, repo: string, pull_number: number): Promise<PullRequestInformation> {
   // Get what we can from the GraphQL query. GraphQL support for
   // status queries is currently broken, so we fall back to the old API
   // for those.
- const response = await octokit.graphql(
+ const response = await octokit().graphql(
     `{
       repository(name: "${repo}", owner: "${owner}") {
         pullRequest(number: ${pull_number}) {
@@ -32,12 +39,12 @@ export async function getPullRequestInformation(owner: string, repo: string, pul
 
 async function pullRequestInfoFromQuery(owner: string, repo: string, pullRequest: any) {
   // commit statuses and check runs are apparently 2 different things :(
-  const { data: checks } = await octokit.checks.listForRef({
+  const { data: checks } = await octokit().checks.listForRef({
     owner, repo,
     ref: pullRequest.headRefOid
   });
 
-  const { data: statuses } = await octokit.repos.listStatusesForRef({
+  const { data: statuses } = await octokit().repos.listStatusesForRef({
     owner, repo,
     ref: pullRequest.headRefOid,
   });
@@ -86,7 +93,7 @@ async function pullRequestInfoFromQuery(owner: string, repo: string, pullRequest
  * But in those cases, we don't really care about the status.
  */
 export async function findPullRequestsFromHead(owner: string, repo: string, commitSha: string): Promise<PullRequestInformation[]> {
-  const response = await octokit.graphql(`{
+  const response = await octokit().graphql(`{
     repository(name: "${repo}", owner: "${owner}") {
       object(oid: "${commitSha}") { ...on Commit {
         associatedPullRequests(first: 100) {

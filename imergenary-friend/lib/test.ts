@@ -14,7 +14,7 @@ export async function evaluateAgainstGitHub(url: string, program: string) {
   );
 
   evaluate(program, {
-    pr: prInfo,
+    pullRequest: prInfo,
     debug: process.stdout
   });
 }
