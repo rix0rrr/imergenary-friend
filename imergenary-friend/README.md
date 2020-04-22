@@ -93,7 +93,7 @@ pr_author_assocation(contributor|maintainer).
 pr_draft.
 pr_mergeable.
 pr_rebaseable.
-pr_mergeable_state(behind|blocked|clean|dirty|draft|unknown|unstable).  % https://developer.github.com/v4/enum/mergestatestatus/
+pr_merge_state_status(behind|blocked|clean|dirty|draft|unknown|unstable).  % https://developer.github.com/v4/enum/mergestatestatus/
 pr_maintainer_can_modify.
 pr_label(<label>).
 pr_check(<name>, success|failure|neutral|cancelled|timed_out|action_required|pending).

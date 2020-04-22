@@ -15,7 +15,7 @@ export interface PullRequestInformation {
   merged: boolean;
   mergeable: boolean;
   rebaseable: boolean;
-  mergeableState: string;
+  mergeStateStatus: string;
   maintainerCanModify: boolean;
   requestedReviewers?: string[];
   requestedTeams?: string[];

@@ -58,7 +58,7 @@ function addPrFacts(pr: PullRequestInformation, session: pl.type.Session, option
   _.boolFact('pr_merged', pr.merged);
   _.boolFact('pr_mergeable', pr.mergeable);
   _.boolFact('pr_rebaseable', pr.rebaseable);
-  _.stringFact('pr_mergeable_state', pr.mergeableState);
+  _.stringFact('pr_merge_state_status', pr.mergeStateStatus);
   _.boolFact('pr_maintainer_can_modify', pr.maintainerCanModify);
 
   _.listFact('pr_label', 1, pr.labels ?? []);

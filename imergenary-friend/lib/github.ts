@@ -70,7 +70,7 @@ async function pullRequestInfoFromQuery(owner: string, repo: string, pullRequest
     merged: pullRequest.merged,
     mergeable: pullRequest.mergeable?.toLowerCase(),
     rebaseable: pullRequest.canBeRebased,
-    mergeableState: pullRequest.mergeableStateStatus?.toLowerCase(),
+    mergeStateStatus: pullRequest.mergeStateStatus?.toLowerCase(),
     maintainerCanModify: pullRequest.maintainerCanModify,
     requestedReviewers: pullRequest.reviewRequests.nodes.map((r: any) => r.login).filter((x: any) => x !== undefined),
     requestedTeams: pullRequest.reviewRequests.nodes.map((r: any) => r.name).filter((x: any) => x !== undefined),
