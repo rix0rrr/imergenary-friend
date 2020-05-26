@@ -33,3 +33,11 @@ export function X() {
 export function _() {
   return v('_');
 }
+
+export function allAnswers(session: pl.type.Session): Array<pl.type.Error | pl.type.Substitution> {
+  const ret = new Array();
+  session.answers(x => {
+    if (x) { ret.push(x); }
+  });
+  return ret;
+}

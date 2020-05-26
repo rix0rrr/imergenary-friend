@@ -1,6 +1,7 @@
 import * as pl from 'tau-prolog';
 import * as ph from './prolog-helpers';
 import { PullRequestInformation, TriggerEvent, Action } from "./types";
+import { getPullRequestInformation } from './github';
 
 export interface EvaluateOptions {
   pullRequest: PullRequestInformation;
@@ -16,27 +17,23 @@ export function evaluate(program: string, options: EvaluateOptions): Action[] {
 
   // Seed the session with rules
   addPrFacts(options.pullRequest, session, options);
-  if (options.event) {
-    addEventFacts(options.event, session, options);
-  }
+  addEventFacts(options.event, session, options);
   extendRuleSet(session);
 
   // Evaluate the program
   const parsed = session.consult(program);
-  if (parsed !== true) { throw termToError(parsed); }
+  if (parsed !== true) { throw new Error(errorMessage(parsed)); }
 
   // Ask for all actions
   const queried = session.query('action(X).');
-  if (queried !== true) { throw termToError(queried); }
+  if (queried !== true) { throw new Error(errorMessage(queried)); }
 
-  const ret = new Array<Action>();
-  session.answers(x => {
-    if (x) {
-      ret.push({ description: pl.format_answer(x) });
+  return ph.allAnswers(session).map(answer => {
+    if (pl.type.is_error(answer)) {
+      throw new Error(errorMessage(answer));
     }
+    return actionFromTerm(answer.lookup('X'));
   });
-
-  return ret;
 }
 
 /**
@@ -72,9 +69,9 @@ function addPrFacts(pr: PullRequestInformation, session: pl.type.Session, option
 /**
  * Turn an event into a set of facts
  */
-function addEventFacts(event: TriggerEvent, session: pl.type.Session, options: EvaluateOptions) {
+function addEventFacts(event: TriggerEvent | undefined, session: pl.type.Session, options: EvaluateOptions) {
   const _ = new FactHelper(session, options.debug);
-  switch (event.event) {
+  switch (event?.event) {
     case 'pull_request':
       _.addRule(ph.rule('event_changed', [ph.term(event.sender), ph.term(event.action)]));
       break;
@@ -110,11 +107,15 @@ function extendRuleSet(session: pl.type.Session) {
  * - error(existence_error(procedure, '/'(draft, 0)), '/'(call, 1))
  *
  */
-function termToError(term: pl.type.Term) {
-  if (term.id !== 'throw') { return new Error(term.toString()); }
-  // FIXME: Do properly at some point
-  console.log((term as any).__constructor__);
-  return new Error(term.toString());
+function errorMessage(term: pl.type.Error): string {
+  console.log(JSON.stringify(term, undefined, 2));
+  const e = pl.flatten_error(term);
+  switch (e.type) {
+    case 'existence_error':
+      return `Unexpected ${e.existence_type}: ${e.existence}`;
+    default:
+      return JSON.stringify(pl.flatten_error(term));
+  }
 }
 
 function range(n: number) {
@@ -170,3 +171,38 @@ type ArityValue<A extends number> =
   A extends 2 ? [any, any] :
   A extends 3 ? [any, any, any] :
   never;
+
+function actionFromTerm(term: pl.type.Atom): Action {
+  if (!pl.type.is_term(term)) {
+    return { action: 'unknown', actionName: term.toString() };
+  }
+
+  const argumentTerms = term.args.filter(pl.type.is_term);
+
+  switch (term.id) {
+    case 'post_comment':
+      return { action: 'comment', comment: argumentTerms.map(t => t.id).join('\n') };
+    case 'squash':
+      return { action: 'merge', type: 'squash', commitTitle: argumentTerms[0]?.id, commitBody: argumentTerms[1]?.id };
+    case 'merge':
+      return { action: 'merge', type: 'merge', commitTitle: argumentTerms[0]?.id, commitBody: argumentTerms[1]?.id };
+    case 'add_label':
+      if (argumentTerms.length < 1) {
+        return { action: 'unknown', actionName: term.id, arguments: term.args.map(x => x.toString()) };
+      }
+      return { action: 'add_label', label: argumentTerms[0]?.id };
+    case 'remove_label':
+      if (argumentTerms.length < 1) {
+        return { action: 'unknown', actionName: term.id, arguments: term.args.map(x => x.toString()) };
+      }
+      return { action: 'remove_label', label: argumentTerms[0]?.id };
+    case 'merge_from_base':
+      return { action: 'merge_from_base',  };
+    case 'dismiss_approvals':
+      return { action: 'dismiss_approvals', reason: argumentTerms[0]?.id };
+    case 'approve':
+      return { action: 'approve', approvalComment: argumentTerms[0]?.id };
+    default:
+      return { action: 'unknown', actionName: term.id, arguments: term.args.map(x => x.toString()) };
+  }
+}

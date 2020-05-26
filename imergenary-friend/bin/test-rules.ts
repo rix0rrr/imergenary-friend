@@ -12,7 +12,10 @@ async function main() {
   console.log(`% Evaluating ${url} using ${fileName}`);
   const program = await fs.readFile(fileName, { encoding: 'utf-8' });
 
-  await evaluateAgainstGitHub(url, program.toString());
+  const actions = await evaluateAgainstGitHub(url, program.toString());
+  for (const action of actions) {
+    console.log(JSON.stringify(action, undefined, 2));
+  }
 }
 
 main().catch(e => {

@@ -27,6 +27,7 @@
     "@aws-cdk/aws-lambda": "1.32.2",
     "@aws-cdk/aws-lambda-nodejs": "1.32.2",
     "@aws-cdk/aws-secretsmanager": "1.32.2",
+    "@aws-cdk/aws-dynamodb": "1.32.2",
     "@aws-cdk/core": "1.32.2",
     "@types/aws-lambda": "^8.10.48",
     "add": "^2.0.6",

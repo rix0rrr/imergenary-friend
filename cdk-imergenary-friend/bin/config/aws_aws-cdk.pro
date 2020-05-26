@@ -54,7 +54,7 @@ action(merge(T, B)) :-
 
 % ACTION: Merge-with-master if the PR state is behind, so we're sure to
 % run the PR validation against the new proposed master.
-action(sync_with_base) :-
+action(merge_from_base) :-
     approved_for_merging,
     % We're behind and we can actually be merged.
     pr_mergeable_state(behind),
@@ -65,7 +65,7 @@ action(sync_with_base) :-
 approved_for_merging :-
     pr_state(open),
     % Labeled PRs are not ready to be merged
-    not(pr_label('pr/blocked')), not(pr_label('pr/do-not-merge')),
+    % not(pr_label('pr/blocked')), not(pr_label('pr/do-not-merge')),
     % Approved by at least one person who is a core member who is not the author, and no changes requested.
     not(pr_review(_, changes_requested)),
     pr_author(A), approved_by_core_member_except(A).

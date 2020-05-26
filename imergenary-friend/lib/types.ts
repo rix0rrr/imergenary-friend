@@ -2,8 +2,10 @@
  * Information we have on the pull request
  */
 export interface PullRequestInformation {
+  repository: Repository;
+  nodeId: string; // GraphQL node id
   number: number;
-  state: string;
+  state: 'closed' | 'merged' | 'open';
   locked: boolean;
   title: string;
   body: string;
@@ -11,11 +13,12 @@ export interface PullRequestInformation {
   draft: boolean;
   base: string;
   head: string;
-  authorAssociation: string;
+  headOid: string;
+  authorAssociation: 'collaborator' | 'contributor' | 'first_timer' | 'first_time_contributor' | 'member' | 'none' | 'owner';
   merged: boolean;
   mergeable: boolean;
   rebaseable: boolean;
-  mergeStateStatus: string;
+  mergeStateStatus: MergeStateStatus;
   maintainerCanModify: boolean;
   requestedReviewers?: string[];
   requestedTeams?: string[];
@@ -27,17 +30,18 @@ export interface PullRequestInformation {
 
 export interface PullRequestCheck {
   name: string;
-  conclusion: string;
+  conclusion: 'action_required' | 'cancelled' | 'failure' | 'neutral' | 'skipped' | 'stale' | 'success' | 'timed_out' | 'pending';
 }
 
 export interface CommitStatus {
   context: string;
-  state: string;
+  state: 'error' | 'expected' | 'failure' | 'pending' | 'success';
 }
 
 export interface PullRequestReview {
+  nodeId: string;
   reviewer: string;
-  state: string;
+  state: 'approved' | 'changes_requested';
 }
 
 export interface Repository {
@@ -89,8 +93,50 @@ export type StatusFinished = {
   context: string;
 };
 
-export interface Action {
-  description: string;
+export type Action = CommentAction | AddLabelAction | RemoveLabelAction |
+  MergeFromBaseAction | DismissApprovalsAction | ApproveAction | MergeAction |
+  UnknownAction;
+
+export interface CommentAction {
+  action: 'comment';
+  comment: string;
+}
+
+export interface AddLabelAction {
+  action: 'add_label';
+  label: string;
+}
+
+export interface RemoveLabelAction {
+  action: 'remove_label';
+  label: string;
+}
+
+export interface MergeFromBaseAction {
+  action: 'merge_from_base';
+}
+
+export interface DismissApprovalsAction {
+  action: 'dismiss_approvals';
+  reason: string;
+}
+
+export interface UnknownAction {
+  action: 'unknown';
+  actionName: string;
+  arguments?: string[];
+}
+
+export interface ApproveAction {
+  action: 'approve';
+  approvalComment: string;
+}
+
+export interface MergeAction {
+  action: 'merge';
+  type: 'merge' | 'squash';
+  commitTitle?: string;
+  commitBody?: string;
 }
 
 export interface PullRequestAction {
@@ -98,3 +144,12 @@ export interface PullRequestAction {
   pullNumber: number;
   action: Action;
 }
+
+export type MergeStateStatus = 'behind'
+  | 'blocked' // Waiting for GitHub statuses
+  | 'clean'
+  | 'dirty'
+  | 'draft'
+  | 'has_hooks'
+  | 'unknown'
+  | 'unstable';
