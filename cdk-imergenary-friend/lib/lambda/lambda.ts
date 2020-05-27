@@ -2,7 +2,9 @@ import { APIGatewayProxyEvent, Context, APIGatewayProxyResult } from "aws-lambda
 import * as ifriend from 'imergenary-friend';
 import * as AWS from 'aws-sdk';
 import * as AdmZip from 'adm-zip';
-import { PullRequestAction, PullRequestInformation, Action } from "imergenary-friend";
+import { DynamoDBTableStore } from "./dynamodb-store";
+
+const store = new DynamoDBTableStore(process.env.TABLE_NAME!, process.env.QUEUE_INDEX_NAME!);
 
 export async function handler(event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> {
   const eventPayload = JSON.parse(event.body ?? '{}');
@@ -12,8 +14,12 @@ export async function handler(event: APIGatewayProxyEvent, context: Context): Pr
     const events = ifriend.parseEvent(eventType, eventPayload);
 
     for (const event of events) {
-      const [pullRequests, actions] = await actionsForEvent(event);
-      console.log(JSON.stringify({ event, pullRequests, actions }));
+      console.log(JSON.stringify(event));
+      const prActions = await actionsForEvent(event);
+      for (const prAction of prActions) {
+        console.log(JSON.stringify(prAction));
+        await ifriend.performGitHubActions(prAction.actions, prAction.pullRequest, store);
+      }
     }
 
     return {
@@ -28,11 +34,11 @@ export async function handler(event: APIGatewayProxyEvent, context: Context): Pr
   }
 }
 
-async function actionsForEvent(event: ifriend.TriggerEvent): Promise<[PullRequestInformation[], PullRequestAction[]]> {
+async function actionsForEvent(event: ifriend.TriggerEvent): Promise<PrActions[]> {
   const { owner, repo } = event.repository;
 
   const program = await fetchConfig(owner, repo);
-  if (!program) { return [[], []]; }
+  if (!program) { return []; }
 
   await fetchToken();
 
@@ -40,13 +46,10 @@ async function actionsForEvent(event: ifriend.TriggerEvent): Promise<[PullReques
     ? await ifriend.findPullRequestsFromHead(owner, repo, event.sha)
     : [await ifriend.getPullRequestInformation(owner, repo, event.pullNumber)];
 
-  const actions = flatMap(pullRequests, pullRequest => ifriend.evaluate(program, { pullRequest, event }).map(action => ({
-    repository: { owner, repo },
-    pullNumber: pullRequest.number,
-    action,
-  })));
-
-  return [pullRequests, actions];
+  return pullRequests.map(pullRequest => ({
+    pullRequest,
+    actions: ifriend.evaluate(program, { pullRequest, event })
+  }));
 }
 
 async function fetchToken() {
@@ -83,7 +86,7 @@ function flatMap<A, B>(xs: A[], fn: (x: A) => B[]): B[] {
   return Array.prototype.concat([], xs.map(fn));
 }
 
-interface EventActions {
-  pullRequest: PullRequestInformation;
-  actions: PullRequestAction[];
+interface PrActions {
+  pullRequest: ifriend.PullRequestInformation;
+  actions: ifriend.Action[];
 }

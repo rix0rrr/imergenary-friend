@@ -5,7 +5,8 @@ import { PullRequestInformation } from "../types";
  */
 export interface IPullRequestStore {
   accessPullRequestState(pullRequest: PullRequestInformation): Promise<IPullRequestState>;
-  requestMergeFromBase(pullRequest: PullRequestInformation): Promise<IMergeFromBase | undefined>;
+  enqueueMerge(pullRequest: PullRequestInformation): Promise<void>;
+  checkHeadOfQueue(pullRequest: PullRequestInformation): Promise<IMergeQueueHead | undefined>;
 }
 
 export interface IPullRequestState {
@@ -13,6 +14,13 @@ export interface IPullRequestState {
   replaceActions(actionHashes: string[]): Promise<void>;
 }
 
-export interface IMergeFromBase {
-  dequeue(): Promise<void>;
+export interface IMergeQueueHead {
+  dequeue(): Promise<INextPullRequest | undefined>;
+}
+
+export interface INextPullRequest {
+  owner: string;
+  repo: string;
+  number: number;
+  expectedSha: string;
 }

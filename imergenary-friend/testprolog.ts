@@ -69,5 +69,9 @@ if (queried !== true) {
   process.exit(1);
 }
 
-session.answers(x => x && console.log(pl.format_answer(x)));
+session.answers(x => {
+  if (pl.type.is_substitution(x)) {
+    console.log(pl.format_answer(x));
+  }
+});
 

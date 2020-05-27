@@ -35,7 +35,8 @@ export class ImergenaryFriend extends Construct {
     table.addLocalSecondaryIndex({
       indexName: queueIndexName,
       sortKey: { name: 'enqueued', type: ddb.AttributeType.NUMBER },
-      projectionType: ddb.ProjectionType.KEYS_ONLY
+      projectionType: ddb.ProjectionType.INCLUDE,
+      nonKeyAttributes: ['expected_sha'],
     });
 
     const fn = new njslambda.NodejsFunction(this, 'Lambda', {

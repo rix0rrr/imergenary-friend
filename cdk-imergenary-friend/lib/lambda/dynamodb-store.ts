@@ -1,5 +1,5 @@
 import * as AWS from 'aws-sdk';
-import { IPullRequestStore, PullRequestInformation, IMergeFromBase, IPullRequestState } from "imergenary-friend";
+import { IPullRequestStore, PullRequestInformation, IPullRequestState, IMergeQueueHead } from "imergenary-friend";
 
 export class DynamoDBTableStore implements IPullRequestStore {
   private ddb: AWS.DynamoDB;
@@ -33,7 +33,7 @@ export class DynamoDBTableStore implements IPullRequestStore {
     };
   }
 
-  public async requestMergeFromBase(pullRequest: PullRequestInformation): Promise<IMergeFromBase | undefined> {
+  public async enqueueMerge(pullRequest: PullRequestInformation): Promise<void> {
     const tsNow = Date.now();
 
     const key = prKey(pullRequest);
@@ -44,23 +44,27 @@ export class DynamoDBTableStore implements IPullRequestStore {
       await this.ddb.updateItem({
         TableName: this.tableName,
         Key: prKey(pullRequest),
-        UpdateExpression: 'SET enqueued = :ts',
-        ConditionExpression: 'attribute_not_exists(enqueued)',
+        UpdateExpression: 'SET enqueued = if_not_exists(enqueued, :ts), expected_sha = :sha',
         ExpressionAttributeValues: {
-          ':ts': { N: `${tsNow}` }
+          ':ts': { N: `${tsNow}` },
+          ':sha': { S: pullRequest.headOid },
         }
       }).promise();
     } catch (e) {
       // Conditional check failed is okay
       if (e.code !== 'ConditionalCheckFailedException') { throw e; }
     }
+  }
+
+  public async checkHeadOfQueue(pullRequest: PullRequestInformation): Promise<IMergeQueueHead | undefined> {
+    const key = prKey(pullRequest);
 
     // Now query the index: we succeeded if we're the first element in the index
     const response = await this.ddb.query({
       TableName: this.tableName,
       IndexName: this.queueIndexName,
       ConsistentRead: true,
-      Limit: 1,
+      Limit: 2,
       KeyConditionExpression: 'repo = :repo',
       ExpressionAttributeValues: {
         ':repo': key.repo,
@@ -69,30 +73,72 @@ export class DynamoDBTableStore implements IPullRequestStore {
       Select: 'ALL_PROJECTED_ATTRIBUTES',
     }).promise();
 
-    const firstItem = response.Items?.[0];
-    if (!firstItem || firstItem.repo.S !== key.repo || firstItem.pull.N !== key.pull) { return undefined; }
-    const enqueued = firstItem.enqueued;
-    if (!enqueued) { return undefined; }
+    const firstItem = parseQueueEntry(response.Items?.[0]);
+    const secondItem = parseQueueEntry(response.Items?.[1]);
+    if (firstItem?.number !== pullRequest.number) { return undefined; }
 
     return {
-      dequeue: async() => {
-        await this.ddb.updateItem({
-          TableName: this.tableName,
-          Key: prKey(pullRequest),
-          UpdateExpression: 'REMOVE enqueued',
-          ConditionExpression: 'enqueued = :enqueued',
-          ExpressionAttributeValues: {
-            ':enqueued': { N: `${enqueued}` }
-          }
-        }).promise();
+      dequeue: async () => {
+        try {
+          await this.ddb.updateItem({
+            TableName: this.tableName,
+            Key: prKey(pullRequest),
+            UpdateExpression: 'REMOVE enqueued, expected_sha',
+            ConditionExpression: 'enqueued = :enqueued',
+            ExpressionAttributeValues: {
+              ':enqueued': { N: `${firstItem.enqueued}` }
+            }
+          }).promise();
+
+          if (!secondItem) { return undefined; }
+          const [owner, repo] = secondItem.repo.split('/');
+
+          return {
+            owner,
+            repo,
+            number: secondItem.number,
+            expectedSha: secondItem.expected_sha,
+          };
+        } catch (e) {
+          // Conditional check failed is okay
+          if (e.code !== 'ConditionalCheckFailedException') { throw e; }
+        }
+
+        return undefined;
       }
     };
   }
 }
 
-function prKey(pullRequest: PullRequestInformation): Record<string, any> {
+
+function prKey(pullRequest: PullRequestInformation): AWS.DynamoDB.AttributeMap {
   return {
     repo: { S: `${pullRequest.repository.owner}/${pullRequest.repository.repo}` },
     pull: { N: `${pullRequest.number}` },
   };
 }
+
+function parseQueueEntry(ddb: AWS.DynamoDB.AttributeMap | undefined): QueueEntry | undefined {
+  if (!ddb) { return; }
+
+  if (!ddb.repo?.S || !ddb.number?.N || !ddb.enqueued?.N || !ddb.expected_sha?.S) { return; }
+  return {
+    repo: ddb.repo?.S,
+    number: parseInt(ddb.number?.N, 10),
+    enqueued: parseInt(ddb.enqueued?.N, 10),
+    expected_sha: ddb.expected_sha?.S,
+  };
+}
+
+interface QueueEntry {
+  /**
+   * Repository as "owner/repo" string
+   */
+  readonly repo: string;
+  readonly number: number;
+  readonly enqueued: number;
+  readonly expected_sha: string;
+}
+
+
+

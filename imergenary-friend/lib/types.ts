@@ -16,8 +16,20 @@ export interface PullRequestInformation {
   headOid: string;
   authorAssociation: 'collaborator' | 'contributor' | 'first_timer' | 'first_time_contributor' | 'member' | 'none' | 'owner';
   merged: boolean;
+
+  /**
+   * Whether a merge would lead to merge conflicts
+   */
   mergeable: boolean;
+
+  /**
+   * Whether a rebase would lead to merge conflicts
+   */
   rebaseable: boolean;
+
+  /**
+   * Most important blocker to merging
+   */
   mergeStateStatus: MergeStateStatus;
   maintainerCanModify: boolean;
   requestedReviewers?: string[];
@@ -139,17 +151,12 @@ export interface MergeAction {
   commitBody?: string;
 }
 
-export interface PullRequestAction {
-  repository: Repository;
-  pullNumber: number;
-  action: Action;
-}
-
-export type MergeStateStatus = 'behind'
-  | 'blocked' // Waiting for GitHub statuses
-  | 'clean'
-  | 'dirty'
-  | 'draft'
+export type MergeStateStatus = 'behind' // Out of date with the base branch
+  | 'blocked' // Not mergeable because not all tests/conditions have been met
+  | 'clean'  // Ready to merge
+  | 'dirty'  // Has conflicts which prevent updating with base branch
+  | 'draft'  // PR is a draft so cannot be merged by definition
   | 'has_hooks'
-  | 'unknown'
-  | 'unstable';
+  | 'unknown'  // Merged or otherwise unapplicable
+  | 'unstable' // Mergeable with non-passing commit status.
+  ;

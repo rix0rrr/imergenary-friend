@@ -1,6 +1,5 @@
 import { PullRequestInformation, TriggerEvent, Action } from "./types";
 import { Octokit } from '@octokit/rest';
-import { homedir } from "os";
 
 let _octokit: Octokit;
 function octokit() {
@@ -75,7 +74,7 @@ async function pullRequestInfoFromQuery(owner: string, repo: string, pullRequest
     headOid: pullRequest.headRefOid,
     authorAssociation: pullRequest.authorAssociation?.toLowerCase(),
     merged: pullRequest.merged,
-    mergeable: pullRequest.mergeable?.toLowerCase(),
+    mergeable: pullRequest.mergeable?.toLowerCase() === 'mergeable',
     rebaseable: pullRequest.canBeRebased,
     mergeStateStatus: pullRequest.mergeStateStatus?.toLowerCase(),
     maintainerCanModify: pullRequest.maintainerCanModify,
@@ -224,7 +223,7 @@ interface Query {
   updateBranch?: boolean;
 }
 
-export async function executeActions(actions: Action[], pullRequest: PullRequestInformation) {
+export async function executeActionsUNSAFE(actions: Action[], pullRequest: PullRequestInformation) {
   if (actions.length === 0) { return; }
   const queries = actions.map(a => queryFromAction(a, pullRequest)).reduce(mergeQueries);
 
@@ -247,13 +246,22 @@ export async function executeActions(actions: Action[], pullRequest: PullRequest
   // Unfortunately I don't know the GraphQL command for this, so
   // do it via the *old* API
   if (queries.updateBranch) {
-    await octokit().pulls.updateBranch({
-      owner: pullRequest.repository.owner,
-      repo: pullRequest.repository.repo,
-      pull_number: pullRequest.number,
-      expected_head_sha: pullRequest.headOid,
-    })
+    await updateBranch(
+      pullRequest.repository.owner,
+      pullRequest.repository.repo,
+      pullRequest.number,
+      pullRequest.headOid,
+    );
   }
+}
+
+export async function updateBranch(owner: string, repo: string, number: number, expectedSha: string) {
+  await octokit().pulls.updateBranch({
+    owner: owner,
+    repo: repo,
+    pull_number: number,
+    expected_head_sha: expectedSha,
+  })
 }
 
 function mergeQueries(a: Query, b: Query): Query {

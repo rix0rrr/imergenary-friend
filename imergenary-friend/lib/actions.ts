@@ -1,7 +1,7 @@
 import * as crypto from 'crypto';
 import { Action, PullRequestInformation } from "./types";
 import { IPullRequestStore, IPullRequestState } from './store';
-import { executeActions } from './github';
+import { executeActionsUNSAFE, updateBranch } from './github';
 
 export async function performGitHubActions(actions: Action[], pullRequest: PullRequestInformation, store: IPullRequestStore) {
   const state = await store.accessPullRequestState(pullRequest);
@@ -11,16 +11,33 @@ export async function performGitHubActions(actions: Action[], pullRequest: PullR
   // Is this a merge-from-base request? We'll only sync one PR at a time, all merges
   // except one are going to be wasted anyway.
   if (actionsToPerform.find(isMergeFromBaseAction)) {
-    const canMergeFromBase = await store.requestMergeFromBase(pullRequest);
-    if (!canMergeFromBase) {
-      actionsToPerform = actionsToPerform.filter(a => !isMergeFromBaseAction(a));
-    }
+    await store.enqueueMerge(pullRequest);
   }
 
-  executeActions(actionsToPerform, pullRequest);
+  const mergeHead = await store.checkHeadOfQueue(pullRequest);
+  if (!mergeHead) {
+    actionsToPerform = actionsToPerform.filter(a => !isMergeFromBaseAction(a));
+  }
+
+  executeActionsUNSAFE(actionsToPerform, pullRequest);
 
   const newPrStates = actions.filter(shouldStoreActionState).map(actionHash);
   await state.replaceActions(newPrStates);
+
+  // Dequeue this PR from the merge-from-base queue if it's in there (obviously)
+  // and nothing about the PR's merge state would have prevented it from
+  // having been merged.
+  //
+  // If it could have been merged but our actions didn't, we should dequeue it
+  // and focus our attention on the next element of the queue.
+  if (mergeHead && !waitingForCommitStatuses(pullRequest)) {
+    const nextPr = await mergeHead.dequeue();
+    if (nextPr) {
+      // Trigger the merge-back on the next PR. This will lead to another 'sync'
+      // event and a follow-up handling of the PR then.
+      await updateBranch(nextPr.owner, nextPr.repo, nextPr.number, nextPr.expectedSha);
+    }
+  }
 }
 
 function canPerformAction(action: Action, pullRequest: PullRequestInformation, state: IPullRequestState) {
@@ -53,4 +70,9 @@ export function actionHash(action: Action) {
 
 function isMergeFromBaseAction(action: Action) {
   return action.action === 'merge_from_base';
+}
+
+function waitingForCommitStatuses(pullRequest: PullRequestInformation) {
+  // Only status in which we're waiting.
+  return pullRequest.mergeStateStatus === 'blocked';
 }

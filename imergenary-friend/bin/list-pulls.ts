@@ -6,9 +6,10 @@ async function main() {
   const result = await graphqlQuery(`
     query {
       repository(name:"aws-cdk", owner:"aws"){
-        pullRequests(first:100) {
+        pullRequests(last:100, states: [OPEN]) {
           nodes {
             number,
+            mergeable,
             mergeStateStatus
           }
         }
@@ -16,7 +17,7 @@ async function main() {
     }
   `);
 
-  console.log(result);
+  console.log(JSON.stringify(result, undefined, 2));
 }
 
 main().catch(e => {
