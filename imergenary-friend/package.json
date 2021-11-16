@@ -12,7 +12,7 @@
     "@types/jest": "^24.0.22",
     "@types/node": "10.17.5",
     "@types/tau-prolog": "^0.2.81",
-    "aws-sdk": "^2.658.0",
+    "aws-sdk": "^2.814.0",
     "jest": "^24.9.0",
     "typescript": "~3.7.2"
   },
